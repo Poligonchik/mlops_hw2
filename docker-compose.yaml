@@ -1,7 +1,7 @@
 services:
   # Zookeeper (обязательный для Kafka)
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.3.0
+    image: confluentinc/cp-zookeeper:7.9.10
     networks:
       - ml-scorer
     environment:
@@ -12,7 +12,7 @@ services:
 
   # Сервис Kafka
   kafka:
-    image: confluentinc/cp-kafka:7.3.0
+    image: confluentinc/cp-kafka:7.9.10
     depends_on:
       - zookeeper
     networks:
@@ -21,7 +21,7 @@ services:
       - "9095:9095"
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9095
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -35,7 +35,7 @@ services:
 
   # Сервис для создания топиков при старте
   kafka-setup:
-    image: confluentinc/cp-kafka:7.3.0
+    image: confluentinc/cp-kafka:7.9.10
     depends_on:
       kafka:
         condition: service_healthy  # Ждем пока Kafka станет здоровой
