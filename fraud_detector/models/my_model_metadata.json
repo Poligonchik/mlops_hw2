@@ -1,0 +1,32 @@
+{
+  "feature_names": [
+    "merch",
+    "cat_id",
+    "amount",
+    "gender",
+    "one_city",
+    "us_state",
+    "post_code",
+    "lat",
+    "lon",
+    "population_city",
+    "jobs",
+    "merchant_lat",
+    "merchant_lon",
+    "transaction_hour",
+    "transaction_weekday",
+    "transaction_month",
+    "distance"
+  ],
+  "categorical_features": [
+    "merch",
+    "cat_id",
+    "gender",
+    "one_city",
+    "us_state",
+    "post_code",
+    "jobs"
+  ],
+  "threshold": 0.5,
+  "validation_roc_auc": 0.995682493584665
+}
