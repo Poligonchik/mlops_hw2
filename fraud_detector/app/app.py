@@ -35,7 +35,7 @@ TRANSACTIONS_TOPIC = os.getenv(
 
 SCORING_TOPIC = os.getenv(
     "KAFKA_SCORING_TOPIC",
-    "scoring",
+    "scores",
 )
 
 

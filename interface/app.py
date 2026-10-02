@@ -6,10 +6,21 @@ import time
 import os
 import uuid
 
+import altair as alt
+import psycopg2
+
 # Конфигурация Kafka
 KAFKA_CONFIG = {
     "bootstrap_servers": os.getenv("KAFKA_BROKERS", "kafka:9092"),
     "topic": os.getenv("KAFKA_TOPIC", "transactions")
+}
+
+POSTGRES_CONFIG = {
+    "host": os.getenv("POSTGRES_HOST", "postgres"),
+    "port": os.getenv("POSTGRES_PORT", "5432"),
+    "database": os.getenv("POSTGRES_DB", "fraud_db"),
+    "user": os.getenv("POSTGRES_USER", "fraud_user"),
+    "password": os.getenv("POSTGRES_PASSWORD", "fraud_password")
 }
 
 def load_file(uploaded_file):
@@ -45,7 +56,7 @@ def send_to_kafka(df, topic, bootstrap_servers):
                 }
             )
             progress_bar.progress((idx + 1) / total_rows)
-            time.sleep(0.01)
+            # time.sleep(0.01)
             
         producer.flush()
      
@@ -54,12 +65,29 @@ def send_to_kafka(df, topic, bootstrap_servers):
         st.error(f"Ошибка отправки данных: {str(e)}")
         return False
 
+
+def execute_query(query):
+    connection = psycopg2.connect(**POSTGRES_CONFIG)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            columns = [
+                description[0]
+                for description in cursor.description
+            ]
+
+        return pd.DataFrame(rows, columns=columns)
+    finally:
+        connection.close()
+
 # Инициализация состояния
 if "uploaded_files" not in st.session_state:
     st.session_state.uploaded_files = {}
 
 # Интерфейс
-st.title("📤 Отправка данных в Kafka")
+st.title("Отправка данных в Kafka")
 
 # Блок загрузки файлов
 uploaded_file = st.file_uploader(
@@ -77,7 +105,7 @@ if uploaded_file and uploaded_file.name not in st.session_state.uploaded_files:
 
 # Список загруженных файлов
 if st.session_state.uploaded_files:
-    st.subheader("🗂 Список загруженных файлов")
+    st.subheader("Список загруженных файлов")
     
     for file_name, file_data in st.session_state.uploaded_files.items():
         cols = st.columns([4, 2, 2])
@@ -100,3 +128,65 @@ if st.session_state.uploaded_files:
                             st.rerun()
                 else:
                     st.error("Файл не содержит данных")
+
+
+st.divider()
+
+st.header("Результаты")
+
+if st.button("Посмотреть результаты"):
+    try:
+        fraud_transactions = execute_query(
+            """
+            SELECT transaction_id, score, fraud_flag, created_at
+            FROM transaction_scores
+            WHERE fraud_flag = 1
+            ORDER BY created_at DESC
+            LIMIT 10
+            """
+        )
+
+        recent_scores = execute_query(
+            """
+            SELECT score
+            FROM transaction_scores
+            ORDER BY created_at DESC
+            LIMIT 100
+            """
+        )
+
+        st.subheader("Последние фродовые транзакции")
+
+        if fraud_transactions.empty:
+            st.info("Транзакций с fraud_flag = 1 пока нет")
+        else:
+            st.dataframe(
+                fraud_transactions,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        st.subheader("Распределение скоров последних транзакций")
+
+        if recent_scores.empty:
+            st.info("В базе пока нет результатов")
+        else:
+            histogram = alt.Chart(recent_scores).mark_bar().encode(
+                x=alt.X(
+                    "score:Q",
+                    bin=alt.Bin(maxbins=20),
+                    title="Score"
+                ),
+                y=alt.Y(
+                    "count():Q",
+                    title="Количество транзакций"
+                )
+            )
+
+            st.altair_chart(
+                histogram,
+                use_container_width=True
+            )
+
+    except Exception as e:
+        st.error(f"Не удалось получить результаты: {str(e)}")
